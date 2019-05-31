@@ -383,12 +383,12 @@ model = SelfAttenClassifier(
     )
 
 # +
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 import time
 loss_function = F.nll_loss 
 
 time_p, tr_acc_array, ts_acc, loss_p = [], [], [], []
-epochs = 5
+epochs = 10
 # running epoches
 for epoch in range(1, epochs + 1):
         if torch.cuda.is_available():
