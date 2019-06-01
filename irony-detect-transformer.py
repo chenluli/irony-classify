@@ -257,7 +257,8 @@ class SoftMax(nn.Module):
     def forward(self, x):
         x = self.fc(x)
         y = self.softmax(x)
-        return F.softmax(y,dim=1) 
+#         print(y)
+        return y
 
 
 # #### Full Model
@@ -440,16 +441,62 @@ plt.show()
 # Since the data for taskB is imbalanced, add a weight for the loss of each sample according to its label during the training time:  
 # {label:weight}={0.0: 1.9907674552798615, 1.0: 2.7555910543130993, 2.0:12.23404255319149, 3.0: 18.852459016393443}
 
-def multiclass_accuracy(model, loader):
+def multiclass_acc(model, loader):
     model.eval()
     total_acc = 0
     for batch in loader:
         x, y = batch.text, batch.label - 1
-        outputs,_ = model(x, x_l)
-        total_acc += binary_accuracy(outputs.view(-1), y.float()).item()
+        out = model(x)
+        total_acc += binary_acc(outputs.view(-1), y.float()).item()
     return total_acc / len(test_iter)
 
 
+# +
+model2 = SelfAttenClassifier(
+    encoder = Encoder(EncoderLayer(dim_model,attn_layer,ff_layer),num_encoder_layers),
+    classifier = SoftMax(dim_model,num_class=4),
+    )
+
+weight = torch.tensor([1.9907674552798615, 2.7555910543130993, 12.23404255319149, 18.852459016393443])
+loss_function = F.nll_loss(weight)
+
+time_p, tr_acc_array, ts_acc, loss_p = [], [], [], []
+epochs = 10
+# running epoches
+for epoch in range(1, epochs + 1):
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        t_start = time.perf_counter()
+
+        train_loss = train(model, train_loader, loss_function,optimizer)
+        train_acc = binary_acc(model, train_loader)
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        t_end = time.perf_counter()
+        time_p.append(t_end)
+        loss_p.append(train_loss)
+        tr_acc_array.append(train_acc)
+
+        print('Epoch: {:03d}, Acc: {:.8f}, Duration: {:.2f}'.format(
+            epoch, train_acc, t_end - t_start))
+
+# save model params
+torch.save(model.state_dict(), 'taskA_transformer_params.pkl')
+
+# +
+f, ax = plt.subplots(1,1)
+epoches = [i for i in range(len(loss_p))]
+ax.plot(epoches, loss_p, color=color)
+
+ax.legend()
+ax.set_xlabel('epoches')
+ax.set_ylabel('loss')
+
+plt.show()
+# -
 
 # ### Evaluation
 
