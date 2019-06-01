@@ -30,6 +30,9 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 # -
 
+np.random.seed(1)
+torch.manual_seed(1)
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -216,6 +219,7 @@ class AddNorm(nn.Module):
 
 # #### Encoder
 # self-attention layers: all of the keys, values and queries come from the previous layer in the encoder. Each position in the encoder can attend to all positions in the previous layer of the encoder.
+# ![](http://ww3.sinaimg.cn/large/006tNc79ly1g3lnoeaucuj31840qsqbg.jpg)
 
 # 一层Encoder: self-atten --> add&norm --> feed-forward --> add&norm
 # 浅层网络可以去掉add&norm层？
@@ -281,7 +285,7 @@ class SelfAttenClassifier(nn.Module):
         outputs = self.classifier(feats)
         return outputs
 
-# ###### TODO concatenate sentence embedding before classifier
+# ###### TODO concatenate sentence embedding before classifier & output sentence representation
 
 
 
@@ -317,6 +321,9 @@ class IronyDataset(Dataset):
             
         return sample, label
 
+# ##### TODO sequence masking ?
+
+
 
 train_data = IronyDataset(trainA, seq_to_tensor)
 
@@ -333,7 +340,7 @@ def collate_fn(batch):
     return sequences_padded, labels, lengths
 
 
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
 
@@ -433,32 +440,25 @@ ax.set_xlabel('epoches')
 ax.set_ylabel('loss')
 
 plt.show()
-
-
 # -
 
 # ##### TaskB
 # Since the data for taskB is imbalanced, add a weight for the loss of each sample according to its label during the training time:  
 # {label:weight}={0.0: 1.9907674552798615, 1.0: 2.7555910543130993, 2.0:12.23404255319149, 3.0: 18.852459016393443}
 
-def multiclass_acc(model, loader):
-    model.eval()
-    total_acc = 0
-    for batch in loader:
-        x, y = batch.text, batch.label - 1
-        out = model(x)
-        total_acc += 
-    return total_acc / len(test_iter)
-
+trainB_data = IronyDataset(trainB, seq_to_tensor)
+BATCH_SIZE = 16
+trainB_loader = DataLoader(trainB_data, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
 # +
+num_class = 4
 model2 = SelfAttenClassifier(
     encoder = Encoder(EncoderLayer(dim_model,attn_layer,ff_layer),num_encoder_layers),
-    classifier = SoftMax(dim_model,num_class=4),
+    classifier = SoftMax(dim_model,num_class),
     )
 
 weight = torch.tensor([1.9907674552798615, 2.7555910543130993, 12.23404255319149, 18.852459016393443])
-loss_function = F.nll_loss(weight)
+loss_function = nn.NLLLoss(weight)
 
 time_p, tr_acc_array, ts_acc, loss_p = [], [], [], []
 epochs = 10
@@ -469,8 +469,8 @@ for epoch in range(1, epochs + 1):
 
         t_start = time.perf_counter()
 
-        train_loss = train(model, train_loader, loss_function,optimizer)
-        train_acc = binary_acc(model, train_loader)
+        train_loss = train(model2, trainB_loader, loss_function,optimizer)
+        train_acc = binary_acc(model2, trainB_loader)
 
         if torch.cuda.is_available():
             torch.cuda.synchronize()
@@ -545,9 +545,8 @@ def attention_heatmap(model, dialog_vocab, candidate_vocab, memory, query, label
 # #### Reference
 # - [The Annotated Transformer](http://nlp.seas.harvard.edu/2018/04/03/attention.html#position-wise-feed-forward-networks)
 # - [Multi-head Self Attention for Text Classification](https://www.kaggle.com/fareise/multi-head-self-attention-for-text-classification)
-#
-# --代码参考--
-# - [BERT-pytorch](https://github.com/codertimo/BERT-pytorch]
+# - [BERT_pytorch](https://github.com/codertimo/BERT-pytorch)
+# - [TextClassificationBenchmark](https://github.com/wabyking/TextClassificationBenchmark)
 # - [Variable-sized mini-batches and why PyTorch is good for your health](https://towardsdatascience.com/taming-lstms-variable-sized-mini-batches-and-why-pytorch-is-good-for-your-health-61d35642972e)
 
 
