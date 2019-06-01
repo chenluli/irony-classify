@@ -447,7 +447,7 @@ def multiclass_acc(model, loader):
     for batch in loader:
         x, y = batch.text, batch.label - 1
         out = model(x)
-        total_acc += binary_acc(outputs.view(-1), y.float()).item()
+        total_acc += 
     return total_acc / len(test_iter)
 
 
